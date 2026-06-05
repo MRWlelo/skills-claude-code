@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  plan      String   @default("free")
+  createdAt DateTime @default(now())
+  contracts Contract[]
+}
+
+model Contract {
+  id            String   @id @default(cuid())
+  userId        String
+  tipo          String
+  tipoLabel     String
+  arrendador    String
+  arrendatario  String
+  imovelNome    String
+  imovelMunicipio String
+  imovelEstado  String
+  imovelArea    String
+  prazoAnos     String
+  valor         String
+  conteudo      String
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

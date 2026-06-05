@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import Anthropic from "@anthropic-ai/sdk";
 
 const client = new Anthropic({
@@ -28,6 +31,13 @@ const FORMA_PAGAMENTO_LABELS: Record<string, string> = {
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: "Você precisa estar logado para gerar contratos." }, { status: 401 });
+    }
+
+    const userId = (session.user as { id: string }).id;
+
     const body = await req.json();
     const {
       tipo_contrato,
@@ -93,18 +103,30 @@ Gere o contrato completo em português brasileiro.`;
     const message = await client.messages.create({
       model: "claude-opus-4-8",
       max_tokens: 4000,
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
+      messages: [{ role: "user", content: prompt }],
     });
 
     const contrato = message.content
       .filter((block) => block.type === "text")
       .map((block) => (block as { type: "text"; text: string }).text)
       .join("\n");
+
+    await prisma.contract.create({
+      data: {
+        userId,
+        tipo: tipo_contrato,
+        tipoLabel,
+        arrendador: arrendador_nome,
+        arrendatario: arrendatario_nome,
+        imovelNome: imovel_nome,
+        imovelMunicipio: imovel_municipio,
+        imovelEstado: imovel_estado,
+        imovelArea: imovel_area,
+        prazoAnos: prazo_anos,
+        valor: valor_arrendamento,
+        conteudo: contrato,
+      },
+    });
 
     return NextResponse.json({ contrato });
   } catch (err: unknown) {

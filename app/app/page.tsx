@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
-import { Scale, ArrowLeft, FileText, Loader2, Download, AlertCircle, ChevronDown } from "lucide-react";
+import { Scale, ArrowLeft, FileText, Loader2, Download, AlertCircle, ChevronDown, LayoutDashboard, LogOut } from "lucide-react";
 
 const TIPOS_CONTRATO = [
   { value: "arrendamento_rural", label: "Arrendamento Rural" },
@@ -65,6 +66,7 @@ const initialForm: FormData = {
 };
 
 export default function AppPage() {
+  const { data: session } = useSession();
   const [form, setForm] = useState<FormData>(initialForm);
   const [resultado, setResultado] = useState<string>("");
   const [loading, setLoading] = useState(false);
@@ -131,7 +133,19 @@ export default function AppPage() {
               <span className="font-bold text-gray-900">AgroLegal</span>
             </div>
           </div>
-          <span className="text-sm text-gray-500">Gerador de Contratos Rurais</span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-500">Gerador de Contratos Rurais</span>
+            {session?.user && (
+              <>
+                <Link href="/dashboard" className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">
+                  <LayoutDashboard className="w-3.5 h-3.5" /> Dashboard
+                </Link>
+                <button onClick={() => signOut({ callbackUrl: "/" })} className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600">
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </nav>
 
