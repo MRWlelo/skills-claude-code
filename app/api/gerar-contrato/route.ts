@@ -38,6 +38,21 @@ export async function POST(req: NextRequest) {
 
     const userId = (session.user as { id: string }).id;
 
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 });
+
+    const isPro = user.plan === "pro" && (!user.planExpiresAt || user.planExpiresAt > new Date());
+    const totalContracts = await prisma.contract.count({ where: { userId } });
+    const hasCredits = user.credits > 0;
+    const isFirstFree = totalContracts === 0;
+
+    if (!isPro && !hasCredits && !isFirstFree) {
+      return NextResponse.json(
+        { error: "LIMITE_ATINGIDO", message: "Você usou seu contrato gratuito. Adquira créditos ou assine o plano Escritório." },
+        { status: 402 }
+      );
+    }
+
     const body = await req.json();
     const {
       tipo_contrato,
@@ -111,22 +126,27 @@ Gere o contrato completo em português brasileiro.`;
       .map((block) => (block as { type: "text"; text: string }).text)
       .join("\n");
 
-    await prisma.contract.create({
-      data: {
-        userId,
-        tipo: tipo_contrato,
-        tipoLabel,
-        arrendador: arrendador_nome,
-        arrendatario: arrendatario_nome,
-        imovelNome: imovel_nome,
-        imovelMunicipio: imovel_municipio,
-        imovelEstado: imovel_estado,
-        imovelArea: imovel_area,
-        prazoAnos: prazo_anos,
-        valor: valor_arrendamento,
-        conteudo: contrato,
-      },
-    });
+    await prisma.$transaction([
+      prisma.contract.create({
+        data: {
+          userId,
+          tipo: tipo_contrato,
+          tipoLabel,
+          arrendador: arrendador_nome,
+          arrendatario: arrendatario_nome,
+          imovelNome: imovel_nome,
+          imovelMunicipio: imovel_municipio,
+          imovelEstado: imovel_estado,
+          imovelArea: imovel_area,
+          prazoAnos: prazo_anos,
+          valor: valor_arrendamento,
+          conteudo: contrato,
+        },
+      }),
+      ...(hasCredits && !isPro
+        ? [prisma.user.update({ where: { id: userId }, data: { credits: { decrement: 1 } } })]
+        : []),
+    ]);
 
     return NextResponse.json({ contrato });
   } catch (err: unknown) {

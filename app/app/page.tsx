@@ -93,7 +93,11 @@ export default function AppPage() {
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Erro ao gerar contrato");
+        if (err.error === "LIMITE_ATINGIDO") {
+          window.location.href = "/upgrade";
+          return;
+        }
+        throw new Error(err.message || err.error || "Erro ao gerar contrato");
       }
 
       const data = await res.json();

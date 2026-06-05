@@ -5,7 +5,8 @@ import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import {
   Scale, FileText, Plus, LogOut, Download, Eye,
-  Calendar, MapPin, User, ChevronRight, Loader2
+  Calendar, MapPin, User, ChevronRight, Loader2,
+  Crown, Zap, CreditCard
 } from "lucide-react";
 
 interface Contrato {
@@ -22,21 +23,33 @@ interface Contrato {
   createdAt: string;
 }
 
+interface UserInfo {
+  plan: string;
+  credits: number;
+  contractsCount: number;
+  planExpiresAt: string | null;
+  hasStripe: boolean;
+}
+
 export default function DashboardPage() {
   const { data: session } = useSession();
   const [contratos, setContratos] = useState<Contrato[]>([]);
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [contratoAberto, setContratoAberto] = useState<string | null>(null);
   const [conteudo, setConteudo] = useState<string>("");
   const [loadingContrato, setLoadingContrato] = useState(false);
+  const [loadingPortal, setLoadingPortal] = useState(false);
 
   useEffect(() => {
-    fetch("/api/contratos")
-      .then((r) => r.json())
-      .then((data) => {
-        setContratos(Array.isArray(data) ? data : []);
-        setLoading(false);
-      });
+    Promise.all([
+      fetch("/api/contratos").then((r) => r.json()),
+      fetch("/api/me").then((r) => r.json()),
+    ]).then(([contratosData, meData]) => {
+      setContratos(Array.isArray(contratosData) ? contratosData : []);
+      setUserInfo(meData);
+      setLoading(false);
+    });
   }, []);
 
   async function verContrato(id: string) {
@@ -58,7 +71,18 @@ export default function DashboardPage() {
     URL.revokeObjectURL(url);
   }
 
+  async function abrirPortal() {
+    setLoadingPortal(true);
+    const res = await fetch("/api/stripe/portal", { method: "POST" });
+    const data = await res.json();
+    if (data.url) window.location.href = data.url;
+    else setLoadingPortal(false);
+  }
+
   const userName = session?.user?.name ?? "Usuário";
+  const isPro = userInfo?.plan === "pro";
+  const isFree = !isPro;
+  const canGenerate = isPro || (userInfo?.credits ?? 0) > 0 || (userInfo?.contractsCount ?? 0) === 0;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -72,7 +96,10 @@ export default function DashboardPage() {
         </div>
 
         <nav className="flex-1 px-4 py-6 space-y-1">
-          <NavItem icon={<FileText className="w-4 h-4" />} label="Meus contratos" active />
+          <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm bg-green-50 text-green-700 font-medium">
+            <FileText className="w-4 h-4" />
+            Meus contratos
+          </div>
           <Link
             href="/app"
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
@@ -82,14 +109,58 @@ export default function DashboardPage() {
           </Link>
         </nav>
 
-        <div className="px-4 py-4 border-t border-gray-100">
-          <div className="px-3 py-2 mb-2">
+        {/* Plan status */}
+        <div className="px-4 py-4 border-t border-gray-100 space-y-3">
+          {isPro ? (
+            <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-3">
+              <div className="flex items-center gap-2 mb-1">
+                <Crown className="w-4 h-4 text-green-700" />
+                <span className="text-sm font-semibold text-green-700">Plano Escritório</span>
+              </div>
+              <p className="text-xs text-green-600">Contratos ilimitados</p>
+              {userInfo?.planExpiresAt && (
+                <p className="text-xs text-green-500 mt-1">
+                  Renova em {new Date(userInfo.planExpiresAt).toLocaleDateString("pt-BR")}
+                </p>
+              )}
+              <button
+                onClick={abrirPortal}
+                disabled={loadingPortal}
+                className="mt-2 flex items-center gap-1 text-xs text-green-700 hover:underline disabled:opacity-60"
+              >
+                {loadingPortal ? <Loader2 className="w-3 h-3 animate-spin" /> : <CreditCard className="w-3 h-3" />}
+                Gerenciar assinatura
+              </button>
+            </div>
+          ) : (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-3">
+              <div className="flex items-center gap-2 mb-1">
+                <Zap className="w-4 h-4 text-amber-600" />
+                <span className="text-sm font-semibold text-amber-700">Plano Gratuito</span>
+              </div>
+              <p className="text-xs text-amber-600">
+                {(userInfo?.credits ?? 0) > 0
+                  ? `${userInfo!.credits} crédito${userInfo!.credits > 1 ? "s" : ""} disponível${userInfo!.credits > 1 ? "s" : ""}`
+                  : userInfo?.contractsCount === 0
+                  ? "1 contrato grátis disponível"
+                  : "Sem créditos restantes"}
+              </p>
+              <Link
+                href="/upgrade"
+                className="mt-2 block text-center bg-green-700 text-white text-xs py-1.5 rounded-lg font-medium hover:bg-green-800 transition-colors"
+              >
+                Fazer upgrade
+              </Link>
+            </div>
+          )}
+
+          <div className="px-1">
             <p className="text-sm font-medium text-gray-900 truncate">{userName}</p>
             <p className="text-xs text-gray-400 truncate">{session?.user?.email}</p>
           </div>
           <button
             onClick={() => signOut({ callbackUrl: "/" })}
-            className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 px-3 py-2 w-full rounded-lg hover:bg-gray-50 transition-colors"
+            className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 px-1 py-1 w-full rounded-lg hover:bg-gray-50 transition-colors"
           >
             <LogOut className="w-4 h-4" />
             Sair
@@ -100,6 +171,30 @@ export default function DashboardPage() {
       {/* Main */}
       <div className="ml-64 p-8">
         <div className="max-w-5xl mx-auto">
+          {/* Upgrade banner */}
+          {isFree && !canGenerate && (
+            <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-amber-800">Você usou seu contrato gratuito</p>
+                <p className="text-xs text-amber-600 mt-0.5">Compre créditos ou assine o plano Escritório para continuar</p>
+              </div>
+              <Link
+                href="/upgrade"
+                className="flex items-center gap-1.5 bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-800 transition-colors"
+              >
+                <Crown className="w-3.5 h-3.5" /> Ver planos
+              </Link>
+            </div>
+          )}
+
+          {/* Success banners */}
+          {typeof window !== "undefined" && new URLSearchParams(window.location.search).get("upgrade") === "success" && (
+            <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-4">
+              <p className="text-sm font-semibold text-green-800">Assinatura ativada com sucesso!</p>
+              <p className="text-xs text-green-600 mt-0.5">Agora você tem contratos ilimitados. Bom trabalho!</p>
+            </div>
+          )}
+
           <div className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Meus Contratos</h1>
@@ -209,19 +304,6 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-function NavItem({ icon, label, active = false }: { icon: React.ReactNode; label: string; active?: boolean }) {
-  return (
-    <div
-      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
-        active ? "bg-green-50 text-green-700 font-medium" : "text-gray-600 hover:bg-gray-50"
-      }`}
-    >
-      {icon}
-      {label}
     </div>
   );
 }

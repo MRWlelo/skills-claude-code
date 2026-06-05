@@ -8,29 +8,33 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  password  String
-  plan      String   @default("free")
-  createdAt DateTime @default(now())
-  contracts Contract[]
+  id                 String   @id @default(cuid())
+  name               String
+  email              String   @unique
+  password           String
+  plan               String   @default("free")
+  credits            Int      @default(0)
+  stripeCustomerId   String?
+  stripeSubId        String?
+  planExpiresAt      DateTime?
+  createdAt          DateTime @default(now())
+  contracts          Contract[]
 }
 
 model Contract {
-  id            String   @id @default(cuid())
-  userId        String
-  tipo          String
-  tipoLabel     String
-  arrendador    String
-  arrendatario  String
-  imovelNome    String
+  id              String   @id @default(cuid())
+  userId          String
+  tipo            String
+  tipoLabel       String
+  arrendador      String
+  arrendatario    String
+  imovelNome      String
   imovelMunicipio String
-  imovelEstado  String
-  imovelArea    String
-  prazoAnos     String
-  valor         String
-  conteudo      String
-  createdAt     DateTime @default(now())
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  imovelEstado    String
+  imovelArea      String
+  prazoAnos       String
+  valor           String
+  conteudo        String
+  createdAt       DateTime @default(now())
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
