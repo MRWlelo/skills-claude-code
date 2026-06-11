@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  flows     Flow[]
+  channels  Channel[]
+}
+
+model Flow {
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  status       String   @default("draft")
+  nodes        String   @default("[]")
+  edges        String   @default("[]")
+  trigger      String   @default("keyword")
+  triggerValue String?
+  channelId    String?
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Contact {
+  id            String         @id @default(cuid())
+  name          String
+  phone         String?
+  email         String?
+  channel       String         @default("whatsapp")
+  externalId    String?
+  tags          String         @default("[]")
+  userId        String
+  createdAt     DateTime       @default(now())
+  conversations Conversation[]
+}
+
+model Conversation {
+  id            String    @id @default(cuid())
+  contactId     String
+  contact       Contact   @relation(fields: [contactId], references: [id])
+  channel       String
+  status        String    @default("open")
+  assignedTo    String?
+  lastMessage   String?
+  lastMessageAt DateTime?
+  unreadCount   Int       @default(0)
+  messages      Message[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  content        String
+  type           String       @default("text")
+  direction      String
+  status         String       @default("sent")
+  createdAt      DateTime     @default(now())
+}
+
+model Channel {
+  id        String   @id @default(cuid())
+  name      String
+  type      String
+  status    String   @default("inactive")
+  config    String   @default("{}")
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
