@@ -4,209 +4,161 @@ import bcrypt from 'bcryptjs'
 const prisma = new PrismaClient()
 
 async function main() {
-  const hashedPassword = await bcrypt.hash('demo123', 10)
+  const hash = await bcrypt.hash('demo123', 10)
 
   const user = await prisma.user.upsert({
-    where: { email: 'demo@conversabot.com' },
+    where: { email: 'demo@autogram.com.br' },
     update: {},
     create: {
-      name: 'Demo User',
-      email: 'demo@conversabot.com',
-      password: hashedPassword,
+      name: 'Maria Silva',
+      email: 'demo@autogram.com.br',
+      password: hash,
+      plan: 'pro',
     },
   })
 
-  // Create channels
-  await prisma.channel.createMany({
-    data: [
-      {
-        name: 'WhatsApp Business',
-        type: 'whatsapp',
-        status: 'active',
-        config: JSON.stringify({ phoneNumber: '+55 11 99999-0000', verified: true }),
-        userId: user.id,
-      },
-      {
-        name: 'Instagram',
-        type: 'instagram',
-        status: 'active',
-        config: JSON.stringify({ username: '@conversabot', verified: true }),
-        userId: user.id,
-      },
-      {
-        name: 'Facebook Messenger',
-        type: 'facebook',
-        status: 'inactive',
-        config: JSON.stringify({}),
-        userId: user.id,
-      },
-      {
-        name: 'Web Chat',
-        type: 'webchat',
-        status: 'active',
-        config: JSON.stringify({ widgetColor: '#6366f1', welcomeMessage: 'Hello! How can I help you?' }),
-        userId: user.id,
-      },
-    ],
+  // Delete existing Instagram account for this user to avoid duplicate
+  await prisma.instagramAccount.deleteMany({ where: { userId: user.id } })
+
+  await prisma.instagramAccount.create({
+    data: {
+      userId: user.id,
+      instagramId: '123456789',
+      username: 'mariasilva.moda',
+      name: 'Maria Silva Moda',
+      accessToken: 'mock_token',
+      pageId: 'page_123',
+    },
   })
 
-  // Create flows with proper nodes
-  const triggerNode = {
-    id: 'trigger-1',
-    type: 'triggerNode',
-    position: { x: 250, y: 50 },
-    data: { label: 'Keyword Trigger', keyword: 'hello', description: 'Triggered when user sends "hello"' },
-  }
+  // Delete existing automations
+  await prisma.automation.deleteMany({ where: { userId: user.id } })
 
-  const messageNode1 = {
-    id: 'message-1',
-    type: 'messageNode',
-    position: { x: 250, y: 200 },
-    data: { label: 'Welcome Message', message: 'Hi! Welcome to our service. How can I help you today?' },
-  }
-
-  const conditionNode = {
-    id: 'condition-1',
-    type: 'conditionNode',
-    position: { x: 250, y: 350 },
-    data: { label: 'Check Response', condition: 'contains', value: 'support' },
-  }
-
-  const messageNode2 = {
-    id: 'message-2',
-    type: 'messageNode',
-    position: { x: 100, y: 500 },
-    data: { label: 'Support Message', message: 'Connecting you to our support team...' },
-  }
-
-  const actionNode = {
-    id: 'action-1',
-    type: 'actionNode',
-    position: { x: 400, y: 500 },
-    data: { label: 'Add Tag', action: 'addTag', value: 'interested' },
-  }
-
-  const edges = [
-    { id: 'e1-2', source: 'trigger-1', target: 'message-1' },
-    { id: 'e2-3', source: 'message-1', target: 'condition-1' },
-    { id: 'e3-4', source: 'condition-1', target: 'message-2', sourceHandle: 'yes' },
-    { id: 'e3-5', source: 'condition-1', target: 'action-1', sourceHandle: 'no' },
-  ]
-
-  await prisma.flow.createMany({
-    data: [
-      {
-        name: 'Welcome Flow',
-        description: 'Greets new users and routes them appropriately',
-        status: 'active',
-        nodes: JSON.stringify([triggerNode, messageNode1, conditionNode, messageNode2, actionNode]),
-        edges: JSON.stringify(edges),
-        trigger: 'keyword',
-        triggerValue: 'hello',
-        userId: user.id,
-      },
-      {
-        name: 'Lead Capture',
-        description: 'Captures lead information from new contacts',
-        status: 'active',
-        nodes: JSON.stringify([
-          { id: 't1', type: 'triggerNode', position: { x: 250, y: 50 }, data: { label: 'Opt-in Trigger', keyword: 'start' } },
-          { id: 'm1', type: 'messageNode', position: { x: 250, y: 200 }, data: { label: 'Ask Name', message: "What's your name?" } },
-          { id: 'a1', type: 'actionNode', position: { x: 250, y: 350 }, data: { label: 'Save Contact', action: 'saveContact', value: 'name' } },
-        ]),
-        edges: JSON.stringify([
-          { id: 'e1', source: 't1', target: 'm1' },
-          { id: 'e2', source: 'm1', target: 'a1' },
-        ]),
-        trigger: 'keyword',
-        triggerValue: 'start',
-        userId: user.id,
-      },
-      {
-        name: 'Support Bot',
-        description: 'Handles common support questions automatically',
-        status: 'draft',
-        nodes: JSON.stringify([
-          { id: 't1', type: 'triggerNode', position: { x: 250, y: 50 }, data: { label: 'Support Trigger', keyword: 'help' } },
-          { id: 'm1', type: 'messageNode', position: { x: 250, y: 200 }, data: { label: 'FAQ Menu', message: 'How can I help? Reply: 1-Hours, 2-Pricing, 3-Contact' } },
-        ]),
-        edges: JSON.stringify([
-          { id: 'e1', source: 't1', target: 'm1' },
-        ]),
-        trigger: 'keyword',
-        triggerValue: 'help',
-        userId: user.id,
-      },
-    ],
+  const auto1 = await prisma.automation.create({
+    data: {
+      userId: user.id,
+      name: 'Resposta Automática - Comentários',
+      description: 'Envia DM para quem comentar "quero" nos posts',
+      status: 'active',
+      triggerType: 'comment_keyword',
+      triggerValue: 'quero',
+      triggered: 127,
+      messagesSent: 127,
+      leads: 43,
+      nodes: JSON.stringify([
+        { id: 'trigger-1', type: 'trigger', position: { x: 250, y: 50 }, data: { label: 'Comentário com Palavra-chave', triggerType: 'comment_keyword', keyword: 'quero' } },
+        { id: 'message-1', type: 'message', position: { x: 250, y: 200 }, data: { label: 'DM Automática', message: 'Oi! Vi que você se interessou 😊 Posso te enviar mais informações sobre o produto?' } },
+        { id: 'delay-1', type: 'delay', position: { x: 250, y: 380 }, data: { label: 'Aguardar 24h', hours: 24 } },
+        { id: 'message-2', type: 'message', position: { x: 250, y: 530 }, data: { label: 'Follow-up', message: 'Olá novamente! Não quero perder seu interesse 💕 Clique aqui para ver o catálogo: [link]' } },
+      ]),
+      edges: JSON.stringify([
+        { id: 'e1', source: 'trigger-1', target: 'message-1', animated: true },
+        { id: 'e2', source: 'message-1', target: 'delay-1', animated: true },
+        { id: 'e3', source: 'delay-1', target: 'message-2', animated: true },
+      ]),
+    },
   })
 
-  // Create contacts
-  const contactData = [
-    { name: 'Ana Silva', phone: '+55 11 98765-4321', channel: 'whatsapp', tags: JSON.stringify(['lead', 'hot']) },
-    { name: 'Carlos Santos', phone: '+55 11 91234-5678', channel: 'whatsapp', tags: JSON.stringify(['customer']) },
-    { name: 'Maria Oliveira', email: 'maria@example.com', channel: 'webchat', tags: JSON.stringify(['lead']) },
-    { name: 'João Costa', phone: '+55 21 99876-5432', channel: 'instagram', tags: JSON.stringify(['follower']) },
-    { name: 'Fernanda Lima', phone: '+55 31 98888-1111', channel: 'whatsapp', tags: JSON.stringify(['customer', 'vip']) },
-    { name: 'Roberto Alves', email: 'roberto@example.com', channel: 'facebook', tags: JSON.stringify([]) },
-    { name: 'Juliana Ferreira', phone: '+55 11 97777-2222', channel: 'whatsapp', tags: JSON.stringify(['lead']) },
-    { name: 'Paulo Mendes', phone: '+55 41 96666-3333', channel: 'instagram', tags: JSON.stringify(['customer']) },
-    { name: 'Camila Rocha', email: 'camila@example.com', channel: 'webchat', tags: JSON.stringify(['new']) },
-    { name: 'Diego Martins', phone: '+55 11 95555-4444', channel: 'whatsapp', tags: JSON.stringify(['lead', 'cold']) },
+  const auto2 = await prisma.automation.create({
+    data: {
+      userId: user.id,
+      name: 'Boas-vindas Novos Seguidores',
+      description: 'DM de boas-vindas automática para novos seguidores',
+      status: 'active',
+      triggerType: 'new_follower',
+      triggered: 89,
+      messagesSent: 89,
+      leads: 21,
+      nodes: JSON.stringify([
+        { id: 'trigger-1', type: 'trigger', position: { x: 250, y: 50 }, data: { label: 'Novo Seguidor', triggerType: 'new_follower' } },
+        { id: 'message-1', type: 'message', position: { x: 250, y: 200 }, data: { label: 'DM de Boas-vindas', message: 'Olá! Seja muito bem-vindo(a) ao meu perfil 🌟 Aqui compartilho dicas de moda e novidades exclusivas.' } },
+        { id: 'tag-1', type: 'tag', position: { x: 250, y: 380 }, data: { label: 'Adicionar Tag', tag: 'novo-seguidor' } },
+      ]),
+      edges: JSON.stringify([
+        { id: 'e1', source: 'trigger-1', target: 'message-1', animated: true },
+        { id: 'e2', source: 'message-1', target: 'tag-1', animated: true },
+      ]),
+    },
+  })
+
+  const auto3 = await prisma.automation.create({
+    data: {
+      userId: user.id,
+      name: 'Suporte IA 24/7',
+      description: 'Atendimento com IA para dúvidas frequentes',
+      status: 'inactive',
+      triggerType: 'any_dm',
+      triggered: 34,
+      messagesSent: 68,
+      leads: 12,
+      nodes: JSON.stringify([
+        { id: 'trigger-1', type: 'trigger', position: { x: 250, y: 50 }, data: { label: 'Qualquer DM', triggerType: 'any_dm' } },
+        { id: 'ai-1', type: 'ai', position: { x: 250, y: 200 }, data: { label: 'Resposta IA', prompt: 'Você é um assistente de atendimento da loja Maria Silva Moda. Responda de forma simpática e profissional.' } },
+      ]),
+      edges: JSON.stringify([
+        { id: 'e1', source: 'trigger-1', target: 'ai-1', animated: true },
+      ]),
+    },
+  })
+
+  // Delete existing contacts and conversations
+  await prisma.message.deleteMany({ where: { conversation: { userId: user.id } } })
+  await prisma.conversation.deleteMany({ where: { userId: user.id } })
+  await prisma.contact.deleteMany({ where: { userId: user.id } })
+
+  const contactNames = [
+    { name: 'Ana Paula Souza', username: 'anapaula.s', tags: ['lead-quente', 'interesse-vestidos'], source: 'Resposta Automática - Comentários' },
+    { name: 'Carla Mendes', username: 'carlamendes_', tags: ['cliente', 'vip'], source: 'Boas-vindas Novos Seguidores' },
+    { name: 'Fernanda Lima', username: 'ferlima.insta', tags: ['lead-frio'], source: 'Resposta Automática - Comentários' },
+    { name: 'Juliana Costa', username: 'ju.costa22', tags: ['cliente'], source: 'Boas-vindas Novos Seguidores' },
+    { name: 'Mariana Oliveira', username: 'mari.oli', tags: ['lead-quente', 'follow-up'], source: 'Suporte IA 24/7' },
+    { name: 'Patricia Santos', username: 'paty.santos', tags: ['cliente', 'recorrente'], source: 'Boas-vindas Novos Seguidores' },
+    { name: 'Renata Ferreira', username: 'renata_moda', tags: ['lead-frio'], source: 'Resposta Automática - Comentários' },
+    { name: 'Sabrina Rocha', username: 'sabrinaR', tags: ['lead-quente'], source: 'Resposta Automática - Comentários' },
+    { name: 'Tatiana Alves', username: 'tati.alves_', tags: ['cliente'], source: 'Boas-vindas Novos Seguidores' },
+    { name: 'Viviane Martins', username: 'viviM_moda', tags: ['lead-frio', 'interesse-acessórios'], source: 'Suporte IA 24/7' },
   ]
 
-  for (const contact of contactData) {
-    const created = await prisma.contact.create({
-      data: { ...contact, userId: user.id },
-    })
+  const demoMessages = [
+    ['Oi, quero saber mais sobre os produtos!', 'Olá! Que ótimo que você se interessou 😊 Posso te enviar nosso catálogo completo. Qual categoria te interessa mais?'],
+    ['Quero ver o catálogo', 'Aqui está nosso catálogo completo: [link]. Temos vestidos, blusas e acessórios com ótimos preços!'],
+    ['Quanto custa o frete?', 'O frete é calculado por CEP. Para compras acima de R$150, o frete é grátis para todo o Brasil! 📦'],
+  ]
 
-    // Create a conversation for each contact
-    const conversation = await prisma.conversation.create({
+  for (const c of contactNames) {
+    const contact = await prisma.contact.create({
       data: {
-        contactId: created.id,
-        channel: contact.channel,
-        status: Math.random() > 0.5 ? 'open' : 'resolved',
-        lastMessage: 'Last message preview...',
-        lastMessageAt: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000),
-        unreadCount: Math.floor(Math.random() * 5),
+        userId: user.id,
+        instagramId: `ig_${Math.random().toString(36).substr(2, 9)}`,
+        username: c.username,
+        name: c.name,
+        isFollower: Math.random() > 0.3,
+        tags: JSON.stringify(c.tags),
+        source: c.source,
       },
     })
 
-    // Create messages
-    await prisma.message.createMany({
-      data: [
-        {
-          conversationId: conversation.id,
-          content: 'Hello, I need help with my order.',
-          direction: 'inbound',
-          status: 'read',
-          createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-        },
-        {
-          conversationId: conversation.id,
-          content: 'Hi! I would be happy to help you. What seems to be the issue?',
-          direction: 'outbound',
-          status: 'read',
-          createdAt: new Date(Date.now() - 1.9 * 60 * 60 * 1000),
-        },
-        {
-          conversationId: conversation.id,
-          content: 'Last message preview...',
-          direction: 'inbound',
-          status: 'delivered',
-          createdAt: new Date(Date.now() - 30 * 60 * 1000),
-        },
-      ],
+    const msgPair = demoMessages[Math.floor(Math.random() * demoMessages.length)]
+    const conv = await prisma.conversation.create({
+      data: {
+        userId: user.id,
+        contactId: contact.id,
+        status: Math.random() > 0.4 ? 'open' : 'resolved',
+        lastMessage: msgPair[1],
+        lastMessageAt: new Date(Date.now() - Math.random() * 5 * 24 * 60 * 60 * 1000),
+        unreadCount: Math.floor(Math.random() * 4),
+      },
+    })
+
+    await prisma.message.create({
+      data: { conversationId: conv.id, content: msgPair[0], direction: 'inbound', status: 'read' }
+    })
+    await prisma.message.create({
+      data: { conversationId: conv.id, content: msgPair[1], direction: 'outbound', status: 'delivered', automationId: auto1.id }
     })
   }
 
-  console.log('Database seeded successfully!')
+  console.log('Seed concluído!')
 }
 
-main()
-  .catch((e) => {
-    console.error(e)
-    process.exit(1)
-  })
-  .finally(async () => {
-    await prisma.$disconnect()
-  })
+main().catch(console.error).finally(() => prisma.$disconnect())

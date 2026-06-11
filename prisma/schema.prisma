@@ -8,57 +8,81 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  password  String
-  createdAt DateTime @default(now())
-  flows     Flow[]
-  channels  Channel[]
+  id               String    @id @default(cuid())
+  name             String
+  email            String    @unique
+  password         String
+  plan             String    @default("free")
+  planExpiresAt    DateTime?
+  monthlyResponses Int       @default(0)
+  monthlyResetsAt  DateTime?
+  createdAt        DateTime  @default(now())
+
+  instagramAccount InstagramAccount?
+  automations      Automation[]
+  contacts         Contact[]
+  conversations    Conversation[]
 }
 
-model Flow {
+model InstagramAccount {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id])
+  instagramId String
+  username    String
+  name        String?
+  avatarUrl   String?
+  accessToken String
+  pageId      String?
+  connectedAt DateTime @default(now())
+}
+
+model Automation {
   id           String   @id @default(cuid())
-  name         String
-  description  String?
-  status       String   @default("draft")
-  nodes        String   @default("[]")
-  edges        String   @default("[]")
-  trigger      String   @default("keyword")
-  triggerValue String?
-  channelId    String?
   userId       String
   user         User     @relation(fields: [userId], references: [id])
+  name         String
+  description  String?
+  status       String   @default("inactive")
+  triggerType  String
+  triggerValue String?
+  nodes        String   @default("[]")
+  edges        String   @default("[]")
+  triggered    Int      @default(0)
+  messagesSent Int      @default(0)
+  leads        Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
 
 model Contact {
-  id            String         @id @default(cuid())
-  name          String
-  phone         String?
-  email         String?
-  channel       String         @default("whatsapp")
-  externalId    String?
-  tags          String         @default("[]")
+  id            String   @id @default(cuid())
   userId        String
-  createdAt     DateTime       @default(now())
+  user          User     @relation(fields: [userId], references: [id])
+  instagramId   String?
+  username      String?
+  name          String?
+  isFollower    Boolean  @default(false)
+  tags          String   @default("[]")
+  notes         String?
+  source        String?
   conversations Conversation[]
+  createdAt     DateTime @default(now())
 }
 
 model Conversation {
-  id            String    @id @default(cuid())
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
   contactId     String
-  contact       Contact   @relation(fields: [contactId], references: [id])
-  channel       String
-  status        String    @default("open")
-  assignedTo    String?
+  contact       Contact  @relation(fields: [contactId], references: [id])
+  status        String   @default("open")
   lastMessage   String?
   lastMessageAt DateTime?
-  unreadCount   Int       @default(0)
+  unreadCount   Int      @default(0)
   messages      Message[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 model Message {
@@ -69,16 +93,6 @@ model Message {
   type           String       @default("text")
   direction      String
   status         String       @default("sent")
+  automationId   String?
   createdAt      DateTime     @default(now())
-}
-
-model Channel {
-  id        String   @id @default(cuid())
-  name      String
-  type      String
-  status    String   @default("inactive")
-  config    String   @default("{}")
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  createdAt DateTime @default(now())
 }

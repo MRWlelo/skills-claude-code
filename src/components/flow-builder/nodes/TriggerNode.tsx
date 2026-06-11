@@ -1,30 +1,39 @@
 import { Handle, Position } from 'reactflow'
-import { Zap } from 'lucide-react'
+import { Hash, MessageSquare, Play, Users, Mail } from 'lucide-react'
 
-interface TriggerNodeData {
-  label: string
-  trigger: string
-  triggerValue?: string
+const triggerIcons: Record<string, React.ElementType> = {
+  comment_keyword: Hash,
+  story_reply: Play,
+  dm_keyword: MessageSquare,
+  any_dm: Mail,
+  new_follower: Users,
 }
 
-export default function TriggerNode({ data, selected }: { data: TriggerNodeData; selected: boolean }) {
+const triggerLabels: Record<string, string> = {
+  comment_keyword: 'Comentário com Palavra-chave',
+  story_reply: 'Resposta de Story',
+  dm_keyword: 'DM com Palavra-chave',
+  any_dm: 'Qualquer DM',
+  new_follower: 'Novo Seguidor',
+}
+
+export default function TriggerNode({ data, selected }: { data: Record<string, unknown>; selected?: boolean }) {
+  const triggerType = (data.triggerType as string) || 'comment_keyword'
+  const Icon = triggerIcons[triggerType] || Hash
+
   return (
-    <div className={`bg-white border-2 rounded-2xl p-4 min-w-[200px] shadow-sm transition-all ${
-      selected ? 'border-emerald-500 shadow-emerald-100 shadow-lg' : 'border-emerald-200'
-    }`}>
-      <div className="flex items-center gap-2 mb-2">
-        <div className="w-7 h-7 bg-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0">
-          <Zap className="w-4 h-4 text-white" />
-        </div>
-        <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">Trigger</span>
+    <div className={`bg-white rounded-2xl border-2 shadow-sm min-w-[200px] ${selected ? 'border-green-500' : 'border-green-300'}`}>
+      <div className="bg-green-500 rounded-t-xl px-4 py-2 flex items-center gap-2">
+        <Icon className="w-4 h-4 text-white" />
+        <span className="text-white text-xs font-semibold uppercase tracking-wide">Gatilho</span>
       </div>
-      <p className="font-semibold text-gray-900 text-sm">{data.label}</p>
-      {data.triggerValue && (
-        <p className="text-xs text-gray-500 mt-1 font-mono bg-gray-50 px-2 py-1 rounded">
-          "{data.triggerValue}"
-        </p>
-      )}
-      <Handle type="source" position={Position.Bottom} className="!w-3 !h-3 !bg-emerald-500 !border-2 !border-white" />
+      <div className="px-4 py-3">
+        <p className="text-sm font-medium text-gray-900">{triggerLabels[triggerType] || String(data.label || 'Gatilho')}</p>
+        {data.keyword ? (
+          <p className="text-xs text-gray-500 mt-1">Palavra: <strong>{String(data.keyword)}</strong></p>
+        ) : null}
+      </div>
+      <Handle type="source" position={Position.Bottom} className="w-3 h-3 !bg-green-500" />
     </div>
   )
 }

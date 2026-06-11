@@ -1,12 +1,9 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
 import './globals.css'
 
-const inter = Inter({ subsets: ['latin'] })
-
 export const metadata: Metadata = {
-  title: 'ConversaBot - Chatbot Marketing Platform',
-  description: 'Build powerful chatbot flows for WhatsApp, Instagram, and more',
+  title: 'AutoGram - Automação de Instagram',
+  description: 'Plataforma brasileira de automação de marketing no Instagram',
 }
 
 export default function RootLayout({
@@ -15,8 +12,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>{children}</body>
+    <html lang="pt-BR">
+      <body>{children}</body>
     </html>
   )
 }

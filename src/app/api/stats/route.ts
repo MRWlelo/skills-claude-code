@@ -1,32 +1,33 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
 
 export async function GET() {
   const session = await getSession()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-
-  const [totalContacts, activeFlows, openConversations, messagesToday] = await Promise.all([
+  const [automations, contacts, messages] = await Promise.all([
+    prisma.automation.findMany({ where: { userId: session.userId } }),
     prisma.contact.count({ where: { userId: session.userId } }),
-    prisma.flow.count({ where: { userId: session.userId, status: 'active' } }),
-    prisma.conversation.count({
-      where: { contact: { userId: session.userId }, status: 'open' },
-    }),
     prisma.message.count({
       where: {
-        createdAt: { gte: today },
-        conversation: { contact: { userId: session.userId } },
+        conversation: { userId: session.userId },
+        direction: 'outbound',
+        createdAt: { gte: new Date(new Date().setDate(1)) },
       },
     }),
   ])
 
+  const activeAutomations = automations.filter(a => a.status === 'active').length
+  const totalTriggered = automations.reduce((sum, a) => sum + a.triggered, 0)
+  const totalLeads = automations.reduce((sum, a) => sum + a.leads, 0)
+  const conversionRate = totalTriggered > 0 ? Math.round((totalLeads / totalTriggered) * 100) : 0
+
   return NextResponse.json({
-    totalContacts,
-    activeFlows,
-    openConversations,
-    messagesToday,
+    activeAutomations,
+    messagesSentThisMonth: messages,
+    contactsCaptured: contacts,
+    conversionRate,
+    recentAutomations: automations.slice(0, 5),
   })
 }
