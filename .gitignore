@@ -11,6 +11,7 @@ node_modules/
 # Database
 prisma/dev.db
 prisma/*.db
+prisma/prisma/
 
 # Misc
 .DS_Store
