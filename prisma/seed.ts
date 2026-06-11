@@ -48,7 +48,6 @@ async function main() {
         userId: user.id,
       },
     ],
-    skipDuplicates: true,
   })
 
   // Create flows with proper nodes
