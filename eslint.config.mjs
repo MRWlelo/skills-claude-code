@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Installed agent skills (example code, not part of the app):
     ".claude/**",
+    // Remotion video projects (own tsconfig/eslint):
+    "videos/**",
   ]),
 ]);
 
